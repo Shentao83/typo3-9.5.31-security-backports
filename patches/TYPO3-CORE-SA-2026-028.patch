@@ -1,0 +1,69 @@
+diff --git a/typo3/sysext/core/Classes/Imaging/ImageMagickFile.php b/typo3/sysext/core/Classes/Imaging/ImageMagickFile.php
+--- a/typo3/sysext/core/Classes/Imaging/ImageMagickFile.php
++++ b/typo3/sysext/core/Classes/Imaging/ImageMagickFile.php
+@@ -84,7 +84,7 @@
+      *
+      * @var string[]
+      */
+-    protected $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff', 'bmp', 'pcx', 'tga', 'ico'];
++    protected $allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'tif', 'tiff', 'bmp', 'pcx', 'tga', 'ico', 'miff'];
+ 
+     /**
+      * File extensions that never shall be used.
+@@ -162,8 +162,7 @@
+     /**
+      * Resolves according ImageMagic/GraphicsMagic format (e.g. 'png:', 'jpg:', ...).
+      * + in case mime-type could be resolved and is configured, it takes precedence
+-     * + otherwise resolved mime-type extension of mime.magick database is used if available
+-     *   (includes custom settings with $GLOBALS['TYPO3_CONF_VARS']['SYS']['FileInfo']['fileExtensionToMimeType'])
++     * + otherwise a detected extension must be allowed or explicitly configured
+      * + otherwise "safe" and allowed file extension is used (jpg, png, gif, webp, tif, ...)
+      * + potentially malicious script formats (eps, ps, ...) are not allowed
+      *
+@@ -176,7 +175,10 @@
+         $fileExtension = strtolower($this->fileExtension);
+         if ($this->mimeType !== null && !empty($this->mimeTypeExtensionMap[$this->mimeType])) {
+             $prefixExtension = $this->mimeTypeExtensionMap[$this->mimeType];
+-        } elseif (!empty($this->mimeExtensions) && strpos((string)$this->mimeType, 'image/') === 0) {
++        } elseif (isset($this->mimeExtensions[0])
++            && strpos((string)$this->mimeType, 'image/') === 0
++            && $this->isTrustedMimeExtension(strtolower($this->mimeExtensions[0]))
++        ) {
+             $prefixExtension = $this->mimeExtensions[0];
+         } elseif ($this->isInAllowedExtensions($fileExtension)) {
+             $prefixExtension = $fileExtension;
+@@ -212,6 +214,13 @@
+         return in_array($extension, $this->allowedExtensions, true);
+     }
+ 
++    protected function isTrustedMimeExtension(string $extension): bool
++    {
++        $mapping = $GLOBALS['TYPO3_CONF_VARS']['SYS']['FileInfo']['fileExtensionToMimeType'] ?? [];
++        return $this->isInAllowedExtensions($extension)
++            || in_array($this->mimeType, $mapping, true);
++    }
++
+     /**
+      * @param string $filePath
+      * @return FileInfo
+diff --git a/typo3/sysext/core/Classes/Type/File/FileInfo.php b/typo3/sysext/core/Classes/Type/File/FileInfo.php
+--- a/typo3/sysext/core/Classes/Type/File/FileInfo.php
++++ b/typo3/sysext/core/Classes/Type/File/FileInfo.php
+@@ -84,7 +84,7 @@
+                 $mimeExtensions = array_keys($fileExtensionToMimeTypeMapping, $mimeType, true);
+             } elseif (function_exists('finfo_file')) {
+                 $fileInfo = new \finfo();
+-                $mimeExtensions = array_filter(
++                $mimeExtensions = array_values(array_filter(
+                     GeneralUtility::trimExplode(
+                         '/',
+                         (string)$fileInfo->file($this->getPathname(), FILEINFO_EXTENSION)
+@@ -93,7 +93,7 @@
+                         // filter invalid items ('???' is used if not found in magic.mime database)
+                         return $item !== '' && $item !== '???';
+                     }
+-                );
++                ));
+             }
+         }
+         return $mimeExtensions;

@@ -1,0 +1,36 @@
+diff --git a/typo3/sysext/form/Classes/Mvc/Property/PropertyMappingConfiguration.php b/typo3/sysext/form/Classes/Mvc/Property/PropertyMappingConfiguration.php
+--- a/typo3/sysext/form/Classes/Mvc/Property/PropertyMappingConfiguration.php
++++ b/typo3/sysext/form/Classes/Mvc/Property/PropertyMappingConfiguration.php
+@@ -69,15 +69,12 @@
+                 ->setTypeConverter($typeConverter);
+ 
+             $allowedMimeTypes = [];
+-            $validators = [];
+             if (isset($renderable->getProperties()['allowedMimeTypes']) && \is_array($renderable->getProperties()['allowedMimeTypes'])) {
+                 $allowedMimeTypes = array_filter($renderable->getProperties()['allowedMimeTypes']);
+             }
+-            if (!empty($allowedMimeTypes)) {
+-                $mimeTypeValidator = GeneralUtility::makeInstance(ObjectManager::class)
+-                    ->get(MimeTypeValidator::class, ['allowedMimeTypes' => $allowedMimeTypes]);
+-                $validators = [$mimeTypeValidator];
+-            }
++            $mimeTypeValidator = GeneralUtility::makeInstance(ObjectManager::class)
++                ->get(MimeTypeValidator::class, ['allowedMimeTypes' => $allowedMimeTypes]);
++            $validators = [$mimeTypeValidator];
+ 
+             $processingRule = $renderable->getRootForm()->getProcessingRule($renderable->getIdentifier());
+             foreach ($processingRule->getValidators() as $validator) {
+diff --git a/typo3/sysext/form/Classes/Mvc/Validation/MimeTypeValidator.php b/typo3/sysext/form/Classes/Mvc/Validation/MimeTypeValidator.php
+--- a/typo3/sysext/form/Classes/Mvc/Validation/MimeTypeValidator.php
++++ b/typo3/sysext/form/Classes/Mvc/Validation/MimeTypeValidator.php
+@@ -106,8 +106,8 @@
+      */
+     protected function validateOptions()
+     {
+-        if (!is_array($this->options['allowedMimeTypes']) || $this->options['allowedMimeTypes'] === []) {
+-            throw new InvalidValidationOptionsException('The option "allowedMimeTypes" must be an array with at least one item.', 1471713296);
++        if (!is_array($this->options['allowedMimeTypes'])) {
++            throw new InvalidValidationOptionsException('The option "allowedMimeTypes" must be an array.', 1471713296);
+         }
+     }
+ }

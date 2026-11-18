@@ -1,0 +1,92 @@
+diff --git a/typo3/sysext/core/Classes/Utility/GeneralUtility.php b/typo3/sysext/core/Classes/Utility/GeneralUtility.php
+--- a/typo3/sysext/core/Classes/Utility/GeneralUtility.php
++++ b/typo3/sysext/core/Classes/Utility/GeneralUtility.php
+@@ -3325,33 +3325,61 @@
+      */
+     public static function sanitizeLocalUrl($url = '')
+     {
+-        $sanitizedUrl = '';
+-        if (!empty($url)) {
+-            $decodedUrl = rawurldecode($url);
+-            $parsedUrl = parse_url($decodedUrl);
+-            $testAbsoluteUrl = self::resolveBackPath($decodedUrl);
+-            $testRelativeUrl = self::resolveBackPath(self::dirname(self::getIndpEnv('SCRIPT_NAME')) . '/' . $decodedUrl);
+-            // Pass if URL is on the current host:
+-            if (self::isValidUrl($decodedUrl)) {
+-                if (self::isOnCurrentHost($decodedUrl) && strpos($decodedUrl, self::getIndpEnv('TYPO3_SITE_URL')) === 0) {
+-                    $sanitizedUrl = $url;
+-                }
+-            } elseif (self::isAbsPath($decodedUrl) && self::isAllowedAbsPath($decodedUrl)) {
+-                $sanitizedUrl = $url;
+-            } elseif (strpos($testAbsoluteUrl, self::getIndpEnv('TYPO3_SITE_PATH')) === 0 && $decodedUrl[0] === '/' &&
+-                substr($decodedUrl, 0, 2) !== '//'
+-            ) {
+-                $sanitizedUrl = $url;
+-            } elseif (empty($parsedUrl['scheme']) && strpos($testRelativeUrl, self::getIndpEnv('TYPO3_SITE_PATH')) === 0
+-                && $decodedUrl[0] !== '/' && strpbrk($decodedUrl, '*:|"<>') === false && strpos($decodedUrl, '\\\\') === false
+-            ) {
+-                $sanitizedUrl = $url;
+-            }
+-        }
+-        if (!empty($url) && empty($sanitizedUrl)) {
+-            static::getLogger()->notice('The URL "' . $url . '" is not considered to be local and was denied.');
+-        }
+-        return $sanitizedUrl;
++        if (empty($url)) {
++            return '';
++        }
++
++        $siteUrl = self::getIndpEnv('TYPO3_SITE_URL');
++        $sitePath = self::getIndpEnv('TYPO3_SITE_PATH');
++        $scriptName = self::getIndpEnv('SCRIPT_NAME');
++
++        // The browser can interpret the original URL differently from its decoded form.
++        if (self::isLocalUrl($url, $siteUrl, $sitePath, $scriptName)
++            && self::isLocalUrl(rawurldecode($url), $siteUrl, $sitePath, $scriptName)
++        ) {
++            return $url;
++        }
++
++        static::getLogger()->notice('The URL "' . $url . '" is not considered to be local and was denied.');
++        return '';
++    }
++
++    private static function isLocalUrl(string $url, string $siteUrl, string $sitePath, string $scriptName): bool
++    {
++        if ($url === '' || preg_match('/[\x00-\x1f\x7f]/', $url)) {
++            return false;
++        }
++
++        $parsedUrl = parse_url($url);
++        if ($parsedUrl === false) {
++            return false;
++        }
++        if (self::isValidUrl($url)) {
++            $parsedSiteUrl = parse_url($siteUrl);
++            return isset($parsedSiteUrl['scheme'], $parsedSiteUrl['host'], $parsedUrl['host'])
++                && !isset($parsedUrl['user'])
++                && !isset($parsedUrl['pass'])
++                && strcasecmp($parsedUrl['scheme'], $parsedSiteUrl['scheme']) === 0
++                && strcasecmp($parsedUrl['host'], $parsedSiteUrl['host']) === 0
++                && ($parsedUrl['port'] ?? null) === ($parsedSiteUrl['port'] ?? null)
++                && strpos($parsedUrl['path'] ?? '', $sitePath) === 0;
++        }
++
++        // Browsers trim leading spaces and treat backslashes as slashes for HTTP(S).
++        $browserUrl = ltrim($url, ' ');
++        if (strspn($browserUrl, '/\\') > 1) {
++            return false;
++        }
++        if (self::isAbsPath($url) && self::isAllowedAbsPath($url)) {
++            return true;
++        }
++        if ($url[0] === '/') {
++            return strpos(self::resolveBackPath($url), $sitePath) === 0;
++        }
++        return empty($parsedUrl['scheme'])
++            && strpbrk($url, '*:|"<>') === false
++            && strpos($url, '\\\\') === false
++            && strpos(self::resolveBackPath(self::dirname($scriptName) . '/' . $url), $sitePath) === 0;
+     }
+ 
+     /**

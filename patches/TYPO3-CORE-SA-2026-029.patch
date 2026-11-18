@@ -1,0 +1,24 @@
+diff --git a/typo3/sysext/form/Classes/Mvc/Property/TypeConverter/UploadedFileReferenceConverter.php b/typo3/sysext/form/Classes/Mvc/Property/TypeConverter/UploadedFileReferenceConverter.php
+--- a/typo3/sysext/form/Classes/Mvc/Property/TypeConverter/UploadedFileReferenceConverter.php
++++ b/typo3/sysext/form/Classes/Mvc/Property/TypeConverter/UploadedFileReferenceConverter.php
+@@ -190,7 +190,19 @@
+         } catch (TypeConverterException $e) {
+             return $e->getError();
+         } catch (\Exception $e) {
+-            return $this->objectManager->get(Error::class, $e->getMessage(), $e->getCode());
++            GeneralUtility::makeInstance(LogManager::class)->getLogger(static::class)->error(
++                'An unexpected error occurred while converting an uploaded file to a resource.',
++                ['exception' => $e]
++            );
++            return $this->objectManager->get(
++                Error::class,
++                TranslationService::getInstance()->translate(
++                    'upload.error.150530348',
++                    null,
++                    'EXT:form/Resources/Private/Language/locallang.xlf'
++                ),
++                1793200460
++            );
+         }
+ 
+         $this->convertedResources[$source['tmp_name']] = $resource;

@@ -1,0 +1,39 @@
+diff --git a/typo3/sysext/core/Classes/Controller/FileDumpController.php b/typo3/sysext/core/Classes/Controller/FileDumpController.php
+--- a/typo3/sysext/core/Classes/Controller/FileDumpController.php
++++ b/typo3/sysext/core/Classes/Controller/FileDumpController.php
+@@ -43,22 +43,21 @@
+      */
+     public function dumpAction(ServerRequestInterface $request): ResponseInterface
+     {
+-        $parameters = ['eID' => 'dumpFile'];
+-        $t = $this->getGetOrPost($request, 't');
+-        if ($t) {
+-            $parameters['t'] = $t;
+-        }
+-        $f = $this->getGetOrPost($request, 'f');
+-        if ($f) {
+-            $parameters['f'] = $f;
+-        }
+-        $p = $this->getGetOrPost($request, 'p');
+-        if ($p) {
+-            $parameters['p'] = $p;
++        $type = $this->getGetOrPost($request, 't');
++        $fileUid = $this->getGetOrPost($request, 'f');
++        $processedFileUid = $this->getGetOrPost($request, 'p');
++        $token = $this->getGetOrPost($request, 'token');
++
++        if ($type === 'f' && $fileUid !== '' && $processedFileUid === '') {
++            $parameters = ['eID' => 'dumpFile', 't' => 'f', 'f' => $fileUid];
++        } elseif ($type === 'p' && $processedFileUid !== '' && $fileUid === '') {
++            $parameters = ['eID' => 'dumpFile', 't' => 'p', 'p' => $processedFileUid];
++        } else {
++            return (new Response)->withStatus(403);
+         }
+ 
+-        if (hash_equals(GeneralUtility::hmac(implode('|', $parameters), 'resourceStorageDumpFile'), $this->getGetOrPost($request, 'token'))) {
+-            if (isset($parameters['f'])) {
++        if ($token !== '' && hash_equals(GeneralUtility::hmac(implode('|', $parameters), 'resourceStorageDumpFile'), $token)) {
++            if ($type === 'f') {
+                 try {
+                     $file = ResourceFactory::getInstance()->getFileObject($parameters['f']);
+                     if ($file->isDeleted() || $file->isMissing() || !$this->isFileValid($file)) {

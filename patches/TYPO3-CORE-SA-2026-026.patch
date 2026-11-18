@@ -1,0 +1,16 @@
+diff --git a/typo3/sysext/backend/Classes/Controller/OnlineMediaController.php b/typo3/sysext/backend/Classes/Controller/OnlineMediaController.php
+--- a/typo3/sysext/backend/Classes/Controller/OnlineMediaController.php
++++ b/typo3/sysext/backend/Classes/Controller/OnlineMediaController.php
+@@ -125,8 +125,11 @@
+                 $targetFolder = null;
+             }
+         }
+-        if ($targetFolder === null) {
++        if ($targetFolder === null || $targetFolder->getStorage()->getUid() === 0) {
+             $targetFolder = $this->getBackendUser()->getDefaultUploadFolder();
++        }
++        if (!$targetFolder || $targetFolder->getStorage()->getUid() === 0) {
++            return null;
+         }
+         return OnlineMediaHelperRegistry::getInstance()->transformUrlToFile($url, $targetFolder, $allowedExtensions);
+     }
